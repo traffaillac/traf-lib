@@ -6,7 +6,6 @@
 #define MISC_H
 
 #include <assert.h>
-#include <ctype.h>
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -27,15 +26,19 @@ static int  Bits_count(const Bits* b) { int c, v; for (c = v = 0; c < BITS_CHUNK
 
 
 /* Conversion integer <-> string. */
-static int strtoi(const char* str, char** endptr) {
-	int res, sign;
-	for (; isspace(*str); str++);
-	for (str += sign = (*str == '-'), res = 0; isdigit(*str); str++)
-		res = res * 10 + *str - '0';
-	if (endptr != NULL)
-		*endptr = (char*)str;
-	return (res ^ -sign) + sign;
+static inline long asciitol(char **str_p) {
+    char *str = *str_p;
+    while (*str <= ' ')
+        str++;
+    long negate = (*str == '-');
+    str += negate;
+    long res = 0;
+    while ((unsigned)(*str - '0') <= 9)
+        res = res * 10 + *str++ - '0';
+    *str_p = str;
+    return (res ^ -negate) + negate;
 }
+
 static char* itostr(char* str, int value) {
 	char buf[20], *p = buf;
 	unsigned int div, mod, orig = abs(value);
