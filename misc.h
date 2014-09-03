@@ -25,15 +25,15 @@ static int  Bits_count(const Bits* b) { int c, v; for (c = v = 0; c < BITS_CHUNK
 
 
 
-/* Conversion integer <-> string. */
-static inline long asciitol(char **str_p) {
-    char *str = *str_p;
-    while (*str <= ' ')
+/* integer <-> string conversions. */
+static inline long asciitol(uint8_t **str_p) {
+    uint8_t *str = *str_p;
+    while (*str - 1 < ' ')
         str++;
     long negate = (*str == '-');
     str += negate;
     long res = 0;
-    while ((unsigned)(*str - '0') <= 9)
+    while (*str - '0' <= 9)
         res = res * 10 + *str++ - '0';
     *str_p = str;
     return (res ^ -negate) + negate;
