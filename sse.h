@@ -30,5 +30,5 @@ static inline int asciitoi(uint8_t **str_p) {
     v8hu x1 = _mm_maddubs_epi16(x0, mul8[digits]);
     v4su x2 = _mm_madd_epi16(x1, mul16[digits]);
     *str_p = str + digits;
-    return x2[0] * mul32[digits] + x2[1] + x2[2];
+    return ((x2[0] * mul32[digits] + x2[1] + x2[2]) ^ -negate) + negate;
 }
