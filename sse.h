@@ -3,23 +3,12 @@
  */
 #include <tmmintrin.h>
 
-typedef uint8_t v16qu __attribute__((vector_size(16)));
-typedef uint16_t v8hu __attribute__((vector_size(16)));
-typedef uint32_t v4su __attribute__((vector_size(16)));
-
 
 
 /* SSSE3 string -> integer conversion. */
 static inline int asciitoi(uint8_t **str_p) {
-    static const v16qu mul8[11] = {{0}, {1, 0}, {10, 1}, {10, 1, 1},
-        {10, 1, 10, 1}, {10, 1, 10, 1, 1}, {10, 1, 10, 1, 10, 1},
-        {10, 1, 10, 1, 10, 1, 1}, {10, 1, 10, 1, 10, 1, 10, 1},
-        {10, 1, 10, 1, 10, 1, 10, 1, 1}, {10, 1, 10, 1, 10, 1, 10, 1, 10, 1}};
-    static const v8hu mul16[11] = {{0}, {1}, {1}, {10, 1}, {100, 1}, {100, 1, 1},
-        {100, 1, 1}, {100, 1, 10, 1}, {100, 1, 100, 1}, {100, 1, 1000, 10, 1},
-        {100, 1, 10000, 100, 1}};
-    static const uint32_t mul32[11] = {0, 1, 1, 1, 1, 10, 100, 1000, 10000,
-        100000, 1000000};
+    static const int8_t srli[26] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, -1, -1, -1, -1, -1, -1};
     
     uint8_t *str = *str_p;
     while (*str - 1 < ' ')
@@ -27,13 +16,17 @@ static inline int asciitoi(uint8_t **str_p) {
     int negate = (*str == '-');
     str += negate;
     
-    v16qu x0 = _mm_sub_epi8(_mm_lddqu_si128((__m128i *)str), _mm_set1_epi8('0'));
-    v16qu m = _mm_cmpgt_epi8(_mm_and_si128(x0, _mm_set1_epi8(127)), _mm_set1_epi8(9));
+    __m128i x0 = _mm_sub_epi8(_mm_lddqu_si128((__m128i *)str), _mm_set1_epi8('0'));
+    __m128i m = _mm_cmpgt_epi8(_mm_and_si128(x0, _mm_set1_epi8(127)), _mm_set1_epi8(9));
     unsigned int digits = __builtin_ctz(1 << 10 | _mm_movemask_epi8(m));
-    v8hu x1 = _mm_maddubs_epi16(x0, mul8[digits]);
-    v4su x2 = _mm_madd_epi16(x1, mul16[digits]);
+    __m128i x1 = _mm_shuffle_epi8(x0, _mm_lddqu_si128((__m128i *)(srli + digits)));
+    __m128i x2 = _mm_maddubs_epi16(x1,
+        _mm_set_epi8(0, 0, 0, 0, 0, 0, 1, 10, 1, 10, 1, 10, 1, 10, 10, 100));
+    typedef int32_t v4si __attribute__((vector_size(16)));
+    v4si x3 = (v4si)_mm_madd_epi16(x2,
+        _mm_set_epi16(0, 0, 0, 1, 100, 10000, 1000, 10000));
     *str_p = str + digits;
-    return ((x2[0] * mul32[digits] + x2[1] + x2[2]) ^ -negate) + negate;
+    return ((x3[0] * 1000 + x3[1] + x3[2]) ^ -negate) + negate;
 }
 
 
@@ -68,6 +61,6 @@ static inline uint8_t* itostr(uint8_t* str, int i) {
     x = _mm_insert_epi16(x, digits[u], 0);
     if (u < 10)
         end--, x = _mm_srli_si128(x, 1);
-    _mm_storeu_ps((float *)str, x);
+    _mm_storeu_ps((float *)str, (__m128)x);
     return end;
 }
