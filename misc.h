@@ -10,6 +10,12 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define SWAP(a, b) do { typeof(a) t = a; a = b; b = t; } while(0)
+static inline long long min(long long a, long long b) { return (a < b) ? a : b; }
+static inline long long max(long long a, long long b) { return (a > b) ? a : b; }
+static inline unsigned long long umin(unsigned long long a, unsigned long long b) { return (a < b) ? a : b; }
+static inline unsigned long long umax(unsigned long long a, unsigned long long b) { return (a > b) ? a : b; }
+
 
 
 /* Custom bitset implementation (replace 100 below with the desired size). */
@@ -46,6 +52,66 @@ static char* itostr(char* str, int value) {
 		div = orig / 10, mod = orig % 10, *p++ = '0' + mod;
 	for (*p = '0' + orig; p >= buf; *str++ = *p--);
 	return str;
+}
+
+
+
+/* stdlib's qsort is slow, use this to compete with C++ sort. */
+void quicksort(int *keys, int *values, size_t num)
+{
+    const size_t thresh = 1024; // Set this to fit a partition in L1 cache
+    size_t stack[2 * CHAR_BIT * sizeof(size_t)], *top, lo, hi, mid, i;
+    int key, pivot; // Change the types here rather than using a typedef
+    int value;
+    
+    /* Quicksorts the array into partitions of size<=threshold. */
+    if (num == 0)
+        return;
+    stack[0] = 0;
+    stack[1] = num - 1;
+    for (top = stack; top >= stack; top -= 2) {
+        lo = top[0];
+        hi = top[1];
+        if (hi >= lo + thresh) {
+            mid = lo + (hi - lo) / 2;
+            pivot = max(min(max(keys[lo], keys[mid]), keys[hi]), min(keys[lo], keys[mid]));
+            while (1) {
+                while (keys[lo] < pivot)
+                    lo++;
+                while (keys[hi] > pivot)
+                    hi--;
+                if (lo > hi)
+                    break;
+                SWAP(keys[lo], keys[hi]);
+                SWAP(values[lo], values[hi]);
+                lo++;
+                hi--;
+            }
+            if (hi - top[0] > top[1] - lo)
+                top[3] = top[1], top[2] = lo, top[1] = hi;
+            else
+                top[2] = top[0], top[3] = hi, top[0] = lo;
+            top += 4;
+        }
+    }
+    
+    /* This insertion sort second pass is unneeded when thresh==1. */
+    lo = 0;
+    hi = umin(num - 1, thresh - 1);
+    for (i = 1; i <= hi; i++) {
+        if (keys[i] < keys[lo])
+            lo = i;
+    }
+    SWAP(keys[0], keys[lo]);
+    SWAP(values[0], values[lo]);
+    for (hi = 2; hi < num; hi++) {
+        key = keys[hi];
+        value = values[hi];
+        for (i = hi; keys[i - 1] > key; i--)
+            keys[i] = keys[i - 1], values[i] = values[i - 1];
+        keys[i] = key;
+        values[i] = value;
+    }
 }
 
 
