@@ -59,58 +59,56 @@ static char* itostr(char* str, int value) {
 /* stdlib's qsort is slow, use this to compete with C++ sort. */
 void quicksort(int *keys, int *values, size_t num)
 {
-    const size_t thresh = 1024; // Set this to fit a partition in L1 cache
-    size_t stack[2 * CHAR_BIT * sizeof(size_t)], *top, lo, hi, mid, i;
-    int key, pivot; // Change the types here rather than using a typedef
-    int value;
-    
-    /* Quicksorts the array into partitions of size<=threshold. */
     if (num == 0)
         return;
-    stack[0] = 0;
-    stack[1] = num - 1;
+    const int thresh = 1024; // Set this to fit a partition in L1 cache
+    __typeof(keys) stack[16 * sizeof(keys)], *top, end, lo, hi, mid, p;
+    
+    /* Quicksorts the array into partitions of size<=threshold. */
+    stack[0] = keys;
+    stack[1] = end = keys + num - 1;
     for (top = stack; top >= stack; top -= 2) {
         lo = top[0];
         hi = top[1];
-        if (hi >= lo + thresh) {
-            mid = lo + (hi - lo) / 2;
-            pivot = max(min(max(keys[lo], keys[mid]), keys[hi]), min(keys[lo], keys[mid]));
-            while (1) {
-                while (keys[lo] < pivot)
-                    lo++;
-                while (keys[hi] > pivot)
-                    hi--;
-                if (lo > hi)
-                    break;
-                SWAP(keys[lo], keys[hi]);
-                SWAP(values[lo], values[hi]);
+        if ((size_t)(hi - lo) < thresh) // Make it signed when thresh<3
+            continue;
+        mid = lo + (size_t)(hi - lo) / 2;
+        __typeof(*keys) pivot = max(min(max(*lo, *mid), *hi), min(*lo, *mid));
+        while (1) {
+            while (*lo < pivot)
                 lo++;
+            while (*hi > pivot)
                 hi--;
-            }
-            if (hi - top[0] > top[1] - lo)
-                top[3] = top[1], top[2] = lo, top[1] = hi;
-            else
-                top[2] = top[0], top[3] = hi, top[0] = lo;
-            top += 4;
+            if (lo > hi)
+                break;
+            SWAP(*lo, *hi);
+            SWAP(values[lo - keys], values[hi - keys]);
+            lo++;
+            hi--;
         }
+        if (hi - top[0] > top[1] - lo)
+            top[3] = top[1], top[2] = lo, top[1] = hi;
+        else
+            top[2] = top[0], top[3] = hi, top[0] = lo;
+        top += 4;
     }
     
     /* This insertion sort second pass is unneeded when thresh==1. */
-    lo = 0;
-    hi = umin(num - 1, thresh - 1);
-    for (i = 1; i <= hi; i++) {
-        if (keys[i] < keys[lo])
-            lo = i;
+    lo = keys;
+    hi = (keys + thresh - 1 < end) ? keys + thresh - 1 : end;
+    for (p = keys + 1; p <= hi; p++) {
+        if (*p < *lo)
+            lo = p;
     }
-    SWAP(keys[0], keys[lo]);
-    SWAP(values[0], values[lo]);
-    for (hi = 2; hi < num; hi++) {
-        key = keys[hi];
-        value = values[hi];
-        for (i = hi; keys[i - 1] > key; i--)
-            keys[i] = keys[i - 1], values[i] = values[i - 1];
-        keys[i] = key;
-        values[i] = value;
+    SWAP(*keys, *lo);
+    SWAP(values[0], values[lo - keys]);
+    for (hi = keys + 2; hi <= end; hi++) {
+        __typeof(*keys) key = *hi;
+        __typeof(*values) value = values[hi - keys];
+        for (p = hi; p[-1] > key; p--)
+            *p = p[-1], values[p - keys] = values[p - keys - 1];
+        *p = key;
+        values[p - keys] = value;
     }
 }
 
