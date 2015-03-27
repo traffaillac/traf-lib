@@ -57,23 +57,11 @@ static char* itostr(char* str, int value) {
 
 
 /* stdlib's qsort is slow, use this to compete with C++ sort. */
-void quicksort(int *keys, int *values, size_t num)
+static void quicksort(int *first, int *last, int *values)
 {
-    if (num == 0)
-        return;
-    const int thresh = 1024; // Set this to fit a partition in L1 cache
-    __typeof(keys) stack[16 * sizeof(keys)], *top, end, lo, hi, mid, p;
-    
-    /* Quicksorts the array into partitions of size<=threshold. */
-    stack[0] = keys;
-    stack[1] = end = keys + num - 1;
-    for (top = stack; top >= stack; top -= 2) {
-        lo = top[0];
-        hi = top[1];
-        if ((size_t)(hi - lo) < thresh) // Make it signed when thresh<3
-            continue;
-        mid = lo + (size_t)(hi - lo) / 2;
-        __typeof(*keys) pivot = max(min(max(*lo, *mid), *hi), min(*lo, *mid));
+    while (last - first >= 1024) {
+        typeof(first) lo = first, hi = last, mid = first + (size_t)(last - first) / 2;
+        typeof(*first) pivot = max(min(max(*first, *last), *mid), min(*first, *last));
         while (1) {
             while (*lo < pivot)
                 lo++;
@@ -82,27 +70,23 @@ void quicksort(int *keys, int *values, size_t num)
             if (lo > hi)
                 break;
             SWAP(*lo, *hi);
-            SWAP(values[lo - keys], values[hi - keys]);
+            SWAP(values[lo - first], values[hi - first]);
             lo++;
             hi--;
         }
-        if (hi - top[0] > top[1] - lo)
-            top[3] = top[1], top[2] = lo, top[1] = hi;
-        else
-            top[2] = top[0], top[3] = hi, top[0] = lo;
-        top += 4;
+        quicksort(lo, last, values + (hi - first));
+        last = hi;
     }
-    
-    /* This insertion sort second pass is unneeded when thresh==1. */
-    lo = keys;
-    hi = (keys + thresh - 1 < end) ? keys + thresh - 1 : end;
-    for (p = keys + 1; p <= hi; p++) {
-        if (*p < *lo)
-            lo = p;
-    }
+}
+void sort(int *keys, int *values, size_t num)
+{
+    quicksort(keys, keys + num, values);
+    typeof(keys) p, lo = keys, hi = keys + (num < 1024 ? num : 1024);
+    for (p = keys + 1; p < hi; p++)
+        lo = (*p < *lo) ? p : lo;
     SWAP(*keys, *lo);
-    SWAP(values[0], values[lo - keys]);
-    for (hi = keys + 2; hi <= end; hi++) {
+    SWAP(*values, values[lo - keys]);
+    for (hi = keys + 2; hi < keys + num; hi++) {
         __typeof(*keys) key = *hi;
         __typeof(*values) value = values[hi - keys];
         for (p = hi; p[-1] > key; p--)
