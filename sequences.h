@@ -47,33 +47,35 @@ static int lis(Lis_item* a, int n) {
 /**
  * Solver for the 0/1 knapsack problem.
  *
- * _ Begin with a Knapsack_item with p, w and p_w initialized: Knapsack_item k[n];
- * _ Optionally sort it: qsort(k, n, sizeof(*k), Knapsack_comp);
- * _ The performance can also improve by reducing the gcd of all weights to 1.
+ * _ Start with an initialized list of items: KSitem it[n];
+ * _ Sort it to improve performance: qsort(it, n, sizeof(*it), ks_comp);
+ * _ Reduce the gcd of weights to 1 to improve performance further.
  * _ Find the items leading to the highest profit:
- *   Knapsack_node sto[n * n], *cur;
- *   Knapsack_best b[c + 1];
- *   for (cur = b[Knapsack_bfill(k, n, b, c, sto)].first; cur != NULL; cur = cur->next)
- *     printf("%u %i\n", k[cur->item].w, k[cur->item].p);
+ *   KSsack ks[c + 1];
+ *   KSnode bt[n * n];
+ *   for (int b = ks[ks_solve(n, c)].first; b >= 0; b = bt[b].next)
+ *      printf("%d\n", bt[b].id);
  */
-static int gcd(int a, int b) { int r; while (b > 0) r = a % b, a = b, b = r; return a; }
-typedef struct { double p_w; unsigned int w; int p; } Knapsack_item;
-typedef struct Knapsack_node { struct Knapsack_node* next; int item; } Knapsack_node;
-typedef struct { Knapsack_node* first; int p; } Knapsack_best;
-static int Knapsack_comp(const void* a, const void* b) { return (((Knapsack_item*)a)->p_w < ((Knapsack_item*)b)->p_w); }
-static int Knapsack_bfill(const Knapsack_item* k, int n, Knapsack_best* b, int c, Knapsack_node* sto) {
-	assert(k!=NULL&&b!=NULL&&c>=0&&sto!=NULL);
-	int i, j, w;
-	memset(b, 0, (c + 1) * sizeof(*b));
+static struct KSitem { int p_w, p, w, id; } *it;
+static struct KSsack { int sum, first; } *ks;
+static struct KSnode { int id, next; } *bt;
+static inline int ks_comp(const void *a, const void *b) { return ((struct KSitem *)b)->p_w > ((struct KSitem *)a)->p_w; }
+static inline int gcd(unsigned a, unsigned b) { while (b > 0) { int r = a % b; a = b; b = r; } return a; }
+static int ks_solve(int n, int c) {
+	int i, j, w, x, b = 0;
+	memset(ks, -1, (c + 1) * sizeof(*ks));
+	ks[0].sum = 0;
 	for (i = 0; i < n; i++) {
-		for (w = c - k[i].w; w >= 0; w--) {
-			if ((w == 0 || b[w].first != NULL) && b[w].p + k[i].p > b[j = w + k[i].w].p)
-				sto->next = b[w].first, sto->item = i, b[j].first = sto++, b[j].p = b[w].p + k[i].p;
+		for (w = c - it[i].w; w >= 0; w--) {
+			if (ks[w].sum >= 0 && ks[w].sum + it[i].p > ks[x = w + it[i].w].sum) {
+				bt[b] = (struct KSnode){it[i].id, ks[w].first};
+				ks[x] = (struct KSsack){ks[w].sum + it[i].p, b++};
+			}
 		}
 	}
-	for (w = 0, j = 1; j <= c; j++) {
-		if (b[j].p > b[w].p)
-			w = j;
+	for (w = 0, x = 1; x <= c; x++) {
+		if (ks[x].sum >= ks[w].sum)
+			w = x;
 	}
 	return w;
 }
