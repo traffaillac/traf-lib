@@ -99,38 +99,29 @@ void sort(int *keys, int *values, size_t num)
 
 
 /**
- * Base functions to manage a d-ary heap. O(log n)
- *
- * _ Begin with a custom typed and sized array: double array[n];
- * _ Create the heap, its size and a -1 initialised pos: int heap[n], pos[n], s=0;
- * _ Update the value of array[2], then its position in the heap:
- *   array[2] = 1.6, s = Heap_ins(heap, pos, array, sizeof(*array), comp, s, 2);
- * _ Remove and return the first index in the heap:
- *   int i = Heap_get(heap, pos, array, sizeof(*array), comp, --s);
- * _ comp is meant as in qsort: the first element is the leftmost
+ * Base functions to manage a priority queue. O(log n)
  */
-static int Heap_ins(int* heap, int* pos, void* array, size_t s, int (*comp)(const void*, const void*), int n, int index) {
-	assert(heap!=NULL&&pos!=NULL&&array!=NULL&&comp!=NULL&&n>=0&&index>=0);
-	unsigned int parent, i = (pos[index] < 0) ? n++ : pos[index], d = 4;
-	for (; i > 0 && comp(array + heap[parent = (i - 1) / d] * s, array + index * s) > 0; i = parent)
-		pos[heap[i] = heap[parent]] = i;
-	pos[heap[i] = index] = i;
-	return n;
+static void Heap_push(const void* key, void* base, size_t* num, size_t size, int (*comp)(const void*, const void*)) {
+    int lo = (*num)++;
+    int hi;
+    while ((hi = (lo - 1) >> 1) >= 0 && comp(key, base + hi * size) < 0) {
+        memcpy(base + lo * size, base + hi * size, size);
+        lo = hi;
+    }
+    memcpy(base + lo * size, key, size);
 }
-static int Heap_get(int* heap, int* pos, void* array, size_t s, int (*comp)(const void*, const void*), int n) {
-	assert(heap!=NULL&&pos!=NULL&&array!=NULL&&comp!=NULL&&n>=0);
-	int index, lim, c, res = heap[0], parent = -n, i = 0, d = 4;
-	while (i > parent) {
-		for (parent = i, index = heap[n], c = d * i + 1, lim = (n < c + d) ? n : c + d; c < lim; c++) {
-			if (comp(array + index * s, array + heap[c] * s) > 0)
-				index = heap[c], i = c;
-		}
-		if (i > parent)
-			pos[heap[parent] = heap[i]] = parent;
-	}
-	pos[heap[parent] = heap[n]] = parent;
-	pos[res] = -1;
-	return res;
+static void Heap_pop(void* base, size_t* num, size_t size, int (*comp)(const void *, const void *)) {
+    (*num)--;
+    int hi = 0;
+    int lo;
+    while ((lo = hi * 2 + 1) < *num) {
+        lo += lo + 1 < *num && comp(base + (lo + 1) * size, base + lo * size) < 0;
+        if (comp(base + *num * size, base + lo * size) < 0)
+            break;
+        memcpy(base + hi * size, base + lo * size, size);
+        hi = lo;
+    }
+    memcpy(base + hi * size, base + *num * size, size);
 }
 
 
@@ -142,7 +133,7 @@ static int  Set_card(int* set, int i) { return -set[Set_find(set, i)]; }
 static void Set_union(int* set, int i, int j) {
 	int a = Set_find(set, i), b = Set_find(set, j), c;
 	if (a != b) {
-		if (set[a] > set[b])
+		if (set[a] < set[b])
 			c = a, a = b, b = c;
 		set[a] += set[b], set[b] = a;
 	}
