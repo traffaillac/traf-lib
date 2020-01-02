@@ -1,14 +1,15 @@
+from math import gcd
+
 def sieve(n:int):
-	primes = [False, True, False, False, False, True]*(n//6+1)
-	primes[1] = False
-	primes[2] = primes[3] = True
-	for i in range(4, int(n**.5)+1):
+	primes = [True]*n
+	primes[0] = primes[1] = False
+	for i in range(2, int(n**.5)+1):
 		if primes[i]:
-			for j in range(i*i, n+1, i*2):
+			for j in range(i*i, n, i*2):
 				primes[j] = False
 	return primes
 
-# Based on http://miller-rabin.appspot.com/
+# Deterministic Miller-Rabin for 64bit (http://miller-rabin.appspot.com/)
 def isprime(n:int):
 	if n<2: return False
 	r = ((n-1)&(1-n)).bit_length()-1
@@ -22,3 +23,17 @@ def isprime(n:int):
 				if x == n-1: break
 			else: return False
 	return True
+
+# Pollard's rho extraction of unordered prime factors
+def factors(n:int):
+	def f(x): return (x*x+1)%n
+	if n == 1: return ()
+	if isprime(n): return (n,)
+	for i in range(2, n):
+		x, y, d = i, i, 1
+		while d == 1:
+			x = f(x)
+			y = f(f(y))
+			d = gcd(abs(x-y), n)
+		if d != n: break
+	return factors(d) + factors(n//d)
