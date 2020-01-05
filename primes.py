@@ -1,5 +1,6 @@
 from math import gcd
 
+# Eratosthene's sieve
 def sieve(n:int):
 	primes = [True]*n
 	primes[0] = primes[1] = False
