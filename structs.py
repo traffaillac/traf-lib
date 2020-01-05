@@ -14,7 +14,7 @@ def set_union(s, i, j):
 
 
 
-# Tree with red-black balancing
+# Binary tree with red-black balancing (https://en.wikipedia.org/wiki/Red-black_tree)
 # Nodes are (key, value, parent, left, right, color)
 class Tree:
 	def __init__(self):
