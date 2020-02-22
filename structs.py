@@ -1,9 +1,9 @@
 # Union-Find (on array initialized with -1)
-def set_find(s, i):
+def set_find(s:list, i:int):
 	while s[i] >= 0:
 		i = s[i]
 	return i
-def set_union(s, i, j):
+def set_union(s:list, i:int, j:int):
 	i = set_find(s, i)
 	j = set_find(s, j)
 	if i != j:
@@ -11,6 +11,72 @@ def set_union(s, i, j):
 			i, j = j, i
 		s[i] += s[j]
 		s[j] = i
+
+
+
+# Fenwick tree (on array initialized with 0)
+def fenwick_add(a:list, i:int, diff:int):
+	while i < len(a):
+		a[i] += diff
+		i |= i + 1
+def fenwick_sum(a:list, i:int):
+	s = 0
+	while i >= 0:
+		s += a[i]
+		i = (i & (i + 1)) - 1
+	return s
+
+
+
+# 2D Fenwick tree (on array of 0-initialized arrays)
+def fenwick2_add(a:list, i:int, j:int, diff:int):
+	while i < len(a):
+		b, k = a[i], j
+		while k < len(b):
+			b[k] += diff
+			k |= k + 1
+		i |= i + 1
+def fenwick2_sum(a:list, i:int, j:int):
+	s = 0
+	while i >= 0:
+		b, k = a[i], j
+		while k >= 0:
+			s += b[k]
+			k = (k & (k + 1)) - 1
+		i = (i & (i + 1)) - 1
+	return s
+
+
+
+# Balanced and order statistic tree that is simple and fast in practice
+class BTree:
+	def __init__(self, capacity=512):
+		self.nodes = [[]]
+		self.capacity = capacity
+	def __len__(self):
+		return sum(len(n) for n in self.nodes)
+	def __iter__(self):
+		for n in self.nodes:
+			for p in n:
+				yield p # tuple (key, value)
+	
+	def get(self, key, default=None):
+		n = next((n for n in self.nodes if n[-1][0]>=key), [])
+		return next((p[1] for p in n if p[0]==key), default)
+	
+	def insert(self, key, value, overwrite=True):
+		N, C = self.nodes, self.capacity
+		i, n = next(((i, n) for i, n in enumerate(N) if n and n[-1][0]>=key), (len(N)-1, N[-1]))
+		j, k = next(((j, p[0]) for j, p in enumerate(n) if p[0]>=key), (len(n), None))
+		if k == key:
+			n[j] = (key, value) if overwrite else n[j]
+			return overwrite, n[j][1]
+		if len(n) == C:
+			N[i] = n[C//2:]
+			N.insert(i, n[:C//2])
+			n, j = (N[i], j) if j<=C//2 else (N[i+1], j-C//2)
+		n.insert(j, (key, value))
+		return True, value
 
 
 
@@ -46,7 +112,7 @@ class Tree:
 		if not N:
 			self.len += 1
 			self.root = [key, value, None, None, None, 'black']
-			return True, self.root
+			return True, value
 		while N:
 			P = N
 			if key == P[0]:
