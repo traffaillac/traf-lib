@@ -63,7 +63,6 @@ class BTree:
 	def get(self, key, default=None):
 		n = next((n for n in self.nodes if n[-1][0]>=key), [])
 		return next((p[1] for p in n if p[0]==key), default)
-	
 	def insert(self, key, value, overwrite=True):
 		N, C = self.nodes, self.capacity
 		i, n = next(((i, n) for i, n in enumerate(N) if n and n[-1][0]>=key), (len(N)-1, N[-1]))
@@ -80,6 +79,58 @@ class BTree:
 
 
 
+# same as collections.deque, but with O(1) random access
+class deque:
+	def __init__(self, buf=None, start=0, end=0):
+		self.buf = buf if buf else [None] * 1000001
+		self.start = start
+		self.end = end
+	def __len__(self):
+		b, s, e = self.buf, self.start, self.end
+		return e - s if e >= s else e + len(b) - s
+	def __getitem__(self, i):
+		return self.buf[self._shift(i)]
+	def __setitem__(self, i, v):
+		self.buf[self._shift(i)] = v
+	def __repr__(self):
+		return "[" + ", ".join(map(repr, self)) + "]"
+	
+	def append(self, x):
+		b, s, e = self.buf, self.start, self.end
+		b[e] = x
+		self.end = e = e+1 if e+1<len(b) else 0
+		self._tail(b, s, e)
+	def appendleft(self, x):
+		b, s, e = self.buf, self.start, self.end
+		self.start = s = s-1 if s>0 else len(b)-1
+		b[s] = x
+		self._tail(b, s, e)
+	def pop(self):
+		b, s, e = self.buf, self.start, self.end
+		self.end = e = e-1 if e>0 else len(b)-1
+		v, b[e] = b[e], None
+		return v
+	def popleft(self):
+		b, s, e = self.buf, self.start, self.end
+		v, b[s] = b[s], None
+		self.start = s+1 if s+1<len(b) else 0
+		return v
+	
+	def _shift(self, i):
+		b, s, e = self.buf, self.start, self.end
+		if not -len(self) <= i < len(self):
+			raise IndexError
+		if i >= 0:
+			return s+i if s+i<len(b) else i-len(b)+s
+		else:
+			return e+i if e+i>=0 else i+e+len(b)
+	def _tail(self, b, s, e):
+		if s == e:
+			self.buf = b[:s] + [None]*len(b) + b[s:]
+			self.start = s + len(b)
+
+
+
 # Binary tree with red-black balancing (https://en.wikipedia.org/wiki/Red-black_tree)
 # Nodes are (key, value, parent, left, right, color)
 class Tree:
@@ -88,7 +139,6 @@ class Tree:
 		self.len = 0
 	def __len__(self):
 		return self.len
-	
 	def __iter__(self):
 		stack = []
 		node = self.root
