@@ -48,7 +48,8 @@ def fenwick2_sum(a:list, i:int, j:int):
 
 
 
-# Balanced and order statistic tree that is simple and fast in practice
+# Balanced tree that is simple and fast in practice
+from bisect import bisect, bisect_left
 class BTree:
 	def __init__(self, capacity=512):
 		self.nodes = [[]]
@@ -57,25 +58,37 @@ class BTree:
 		return sum(len(n) for n in self.nodes)
 	def __iter__(self):
 		for n in self.nodes:
-			for p in n:
-				yield p # tuple (key, value)
+			for k in n:
+				yield k
+	def __reversed__(self):
+		for n in reversed(self.nodes):
+			for k in reversed(n):
+				yield k
+	def __repr__(self):
+		return f"[{', '.join(self)}]"
 	
-	def get(self, key, default=None):
-		n = next((n for n in self.nodes if n[-1][0]>=key), [])
-		return next((p[1] for p in n if p[0]==key), default)
-	def insert(self, key, value, overwrite=True):
+	def add(self, key, overwrite=None): # use None for a multiset
 		N, C = self.nodes, self.capacity
-		i, n = next(((i, n) for i, n in enumerate(N) if n and n[-1][0]>=key), (len(N)-1, N[-1]))
-		j, k = next(((j, p[0]) for j, p in enumerate(n) if p[0]>=key), (len(n), None))
-		if k == key:
-			n[j] = (key, value) if overwrite else n[j]
-			return overwrite, n[j][1]
+		i, n = next(((i, n) for i, n in enumerate(N) if n and n[-1]>=key), (len(N)-1, N[-1]))
+		j = bisect(n, key)
+		# use tuples for keys and update this equality to turn the set into a map
+		if j > 0 and n[j-1] == key and overwrite is not None:
+			n[j] = key if overwrite else n[j]
+			return overwrite
 		if len(n) == C:
 			N[i] = n[C//2:]
 			N.insert(i, n[:C//2])
 			n, j = (N[i], j) if j<=C//2 else (N[i+1], j-C//2)
-		n.insert(j, (key, value))
-		return True, value
+		n.insert(j, key)
+		return True
+	def get_lower(self, key, default=None, delete=False):
+		n = next((n for n in reversed(self.nodes) if n and n[0]<=key), [])
+		j = bisect(n, key) - 1
+		return default if j<0 else n.pop(j) if delete else n[j]
+	def get_upper(self, key, default=None, delete=False):
+		n = next((n for n in self.nodes if n and n[-1]>=key), [])
+		j = bisect_left(n, key)
+		return default if j==len(n) else n.pop(j) if delete else n[j]
 
 
 

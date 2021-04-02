@@ -142,12 +142,16 @@ static void Set_union(int* set, int i, int j) {
 
 
 /* Fenwick tree, to keep prefix sums (begin with a zero-initialised array). */
-static void FTree_add(int* base, int n, int i, int diff) { for (; i < n; i |= i + 1) base[i] += diff; }
-static int  FTree_sum(int* base, int i) {
-	int res = 0;
-	for (; i >= 0; i = (i & i + 1) - 1)
-		res += base[i];
-	return res;
+static int fenwick[1000000];
+static void fenwick_add(int i, int diff) {
+    for (; i < sizeof(fenwick)/sizeof(*fenwick); i |= i + 1)
+        fenwick[i] += diff;
+}
+static int fenwick_sum(int i) {
+    int res = 0;
+    for (; i >= 0; i = (i & i + 1) - 1)
+        res += fenwick[i];
+    return res;
 }
 
 #endif
