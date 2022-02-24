@@ -9,7 +9,7 @@ def articulations_bridges(graph, depth, low, i, d=0, parent=None):
 			children += 1
 			if low[j] >= d:
 				is_articulation = True
-			elif low[j] > d:
+			if low[j] > d:
 				print("bridge between", i, "and", j)
 			low[i] = min(low[i], low[j])
 		elif j != parent:
@@ -22,16 +22,16 @@ def articulations_bridges(graph, depth, low, i, d=0, parent=None):
 # graph is a list/dict of adjacency lists, index and low are None-initialized arrays
 def tarjan_scc(graph, index, low, i, uuid=0, stack=[]):
 	index[i] = low[i] = uuid
-	stack.append(i) # condition for i being on stack is index[i]!=None!=low[i]
+	stack.append(i) # condition for i being on stack is low[i]!=None
 	for j in graph[i]:
-		if low[j] == None: # node was never visited before
+		if index[j] == None: # node was never visited before
 			uuid = tarjan_scc(graph, index, low, j, uuid+1, stack)
-		if index[j] != None: # node was not visited by another SCC
+		if low[j] != None: # node was not visited by another SCC
 			low[i] = min(low[i], low[j])
 	if index[i] == low[i]:
 		while True:
 			j = stack.pop()
-			index[j] = None
+			low[j] = None
 			print(j, end=' ')
 			if j == i:
 				break
